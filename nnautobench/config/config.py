@@ -72,4 +72,8 @@ MODEL_CONFIGS = {
             "https://api.mistral.ai/v1",
         ),
     },
+    "mistral-ocr": {
+        "model_name": "mistral-ocr-latest",  # Used in __init__ but not directly in OCR call
+        "api_base": None,  # Not used since Mistral client has its own endpoint
+    },
 }

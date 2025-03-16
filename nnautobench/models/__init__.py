@@ -22,6 +22,7 @@ available_models = {
     "claude37": Claude37,
     "mistral-large": MistralLarge,
     "gpt-o3-mini": GPTo3MiniModel,
+    "mistral-ocr": MistralOCRModel,
 }
 
 
@@ -30,4 +31,5 @@ def get_model(model_name):
         raise ValueError(
             f"Unknown model: {model_name}. Available models are: {', '.join(available_models.keys())}",
         )
-    return available_models[model_name]
+    model_config = MODEL_CONFIGS[model_name]
+    return available_models[model_name](**model_config)
