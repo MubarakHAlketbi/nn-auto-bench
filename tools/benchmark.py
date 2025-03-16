@@ -58,21 +58,23 @@ class RateLimiter:
                     return
             time.sleep(0.1)  # Sleep briefly to avoid busy-waiting
 
-def retry_with_backoff(func, max_retries=3, base_delay=1.0):
-    """Decorator-like function to retry with exponential backoff."""
-    def wrapper(*args, **kwargs):
-        for attempt in range(max_retries + 1):  # +1 for the initial attempt
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                if attempt == max_retries:
-                    raise  # Re-raise the last exception if max retries reached
-                delay = base_delay * (2 ** attempt)  # Exponential backoff: 1, 2, 4, ...
-                logger.warning(
-                    f"Attempt {attempt + 1} failed with error: {e}. Retrying in {delay:.2f} seconds..."
-                )
-                time.sleep(delay)
-    return wrapper
+def retry_with_backoff(max_retries=3, base_delay=1.0):
+    """A decorator factory to retry a function with exponential backoff."""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries:
+                        raise
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(
+                        f"Attempt {attempt + 1} failed with error: {e}. Retrying in {delay:.2f} seconds..."
+                    )
+                    time.sleep(delay)
+        return wrapper
+    return decorator
 
 def run_benchmark(
     model_name,
