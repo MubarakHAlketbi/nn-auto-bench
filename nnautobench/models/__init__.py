@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mistral_ocr_model import MistralOCRModel
+
 from .claude35 import Claude35
 from .claude37 import Claude37
 from .dsv3 import DSv3
@@ -22,7 +22,6 @@ available_models = {
     "claude37": Claude37,
     "mistral-large": MistralLarge,
     "gpt-o3-mini": GPTo3MiniModel,
-    "mistral-ocr": MistralOCRModel,
 }
 
 

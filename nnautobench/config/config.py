@@ -72,8 +72,4 @@ MODEL_CONFIGS = {
             "https://api.mistral.ai/v1",
         ),
     },
-    "mistral-ocr": {
-        "model_name": "mistral-ocr-latest",
-        "api_base": "https://api.mistral.ai/v1",  # Adjust if different
-    },
 }
