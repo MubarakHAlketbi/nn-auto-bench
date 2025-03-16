@@ -42,17 +42,8 @@ def run_benchmark(
     logger.info(f"Num of fewshot examples: {few_shot}")
     logger.info(f"Layout: {layout}")
     try:
-        model_config = MODEL_CONFIGS[model_name]
-        model_class = get_model(model_name)
-        if model_class is None:
-            logger.error(f"Unknown model: {model_name}")
-            raise ValueError(f"Unknown model: {model_name}")
-
         logger.info(f"Initializing {model_name} model")
-        model = model_class(
-            model_config["model_name"],
-            model_config["api_base"],
-        )
+        model = get_model(model_name)
         predictor = Predictor(model, conf_score_method)
 
         logger.info("Loading and filtering data")

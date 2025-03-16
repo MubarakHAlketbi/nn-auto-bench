@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from nnautobench.config.config import MODEL_CONFIGS
+
 from .claude35 import Claude35
 from .claude37 import Claude37
 from .dsv3 import DSv3
@@ -10,6 +12,7 @@ from .gpt4v_model import GPT4VModel
 from .gpto3mini import GPTo3MiniModel
 from .mistral_large import MistralLarge
 from .qwen2_model import Qwen2Model
+from .mistral_ocr import MistralOCRModel
 
 available_models = {
     "qwen2": Qwen2Model,
