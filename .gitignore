@@ -50,3 +50,5 @@ Thumbs.db
 
 # environment variables
 .env
+.venv
+*.egg-info
