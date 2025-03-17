@@ -50,6 +50,7 @@ def run_benchmark(
         dataset_name = ""
         if input_file:
             df = load_data(input_file)
+            base_dir = os.path.dirname(input_file)  # e.g., C:\Users\Mubarak\Documents\Projects\nn-auto-bench\nn-auto-bench-ds
             if limit is None:
                 df_filtered = df
             elif limit > len(df):
@@ -59,7 +60,15 @@ def run_benchmark(
                 df_filtered = df
             else:
                 df_filtered = df.head(limit)
-
+            
+            # Adjust image paths to absolute paths
+            image_path_columns = ['image_path'] + [f'ctx_{i}_image_path' for i in range(1, few_shot + 1)]
+            for col in image_path_columns:
+                if col in df_filtered.columns:
+                    df_filtered[col] = df_filtered[col].apply(
+                        lambda x: os.path.join(base_dir, x) if pd.notnull(x) else x
+                    )
+            
             dataset_name = os.path.basename(input_file).split(".")[0]
 
         else:
