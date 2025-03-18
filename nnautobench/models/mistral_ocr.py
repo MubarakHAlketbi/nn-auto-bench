@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 
 from dotenv import load_dotenv
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class MistralOCRModel(BaseModel):
     def __init__(self, model_name, api_base, **kwargs):
-        super().__init__(model_name, api_base, **kwargs)  # Pass all kwargs to BaseModel
+        super().__init__(model_name, api_base, **kwargs)
         self.client = self._create_client()
 
     def _create_client(self):
@@ -26,18 +27,26 @@ class MistralOCRModel(BaseModel):
             logger.warning("MISTRAL_API_KEY environment variable not set. MistralOCRModel may not work.")
         return Mistral(api_key=api_key)
 
+    def chat_complete_with_backoff(self, **kwargs):
+        """Wrapper for chat.complete with rate limiting."""
+        return self.call_api(self.client.chat.complete, **kwargs)
+
+    def ocr_process_with_backoff(self, **kwargs):
+        """Wrapper for ocr.process with rate limiting."""
+        return self.call_api(self.client.ocr.process, **kwargs)
+
     def get_ocr_text(self, image_path):
-        """Extract OCR text from an image using mistral-ocr-latest, aligned with API documentation."""
+        """Extract OCR text from an image using mistral-ocr-latest."""
         if not os.path.exists(image_path):
             logger.error(f"Image file not found: {image_path}")
             return ""
         base64_image = encode_image_base64(image_path)
         data_url = f"data:image/jpeg;base64,{base64_image}"
         try:
-            ocr_response = self.client.ocr.process(
+            ocr_response = self.ocr_process_with_backoff(
                 document=ImageURLChunk(image_url=data_url),
                 model="mistral-ocr-latest",
-                pages=[0],  # Explicitly specify first page for single-page images
+                pages=[0],
             )
             if ocr_response.pages and len(ocr_response.pages) > 0:
                 ocr_text = ocr_response.pages[0].markdown
@@ -54,8 +63,7 @@ class MistralOCRModel(BaseModel):
             return ""
 
     def create_prompt(self, fields, descriptions=None, image_paths=None, ctx=[], input_text=None, layout="vision_default"):
-        """Create a prompt for field extraction with improved clarity and context validation."""
-        # Handle OCR text extraction
+        """Create a prompt for field extraction."""
         if image_paths and image_paths[0]:
             ocr_text = self.get_ocr_text(image_paths[0])
             if not ocr_text:
@@ -67,7 +75,6 @@ class MistralOCRModel(BaseModel):
             logger.warning("No image path provided; using empty OCR text.")
 
         actual_few_shot = len(ctx)
-        # Construct the main question with clearer instructions
         question = (
             f"Consider the following document text extracted from an image:\n"
             f"--------------------------------\n"
@@ -111,12 +118,12 @@ class MistralOCRModel(BaseModel):
     def predict(self, messages, conf_score_method):
         """Predict field values with robust error handling and separated confidence scoring."""
         max_retries = 5
-        base_wait_time = 5  # Increased to avoid rate limiting
+        base_wait_time = 5
         
         # Primary prediction
         for attempt in range(max_retries):
             try:
-                response = self.client.chat.complete(
+                response = self.chat_complete_with_backoff(
                     model="mistral-large-latest",
                     messages=messages,
                     temperature=0,
@@ -135,7 +142,7 @@ class MistralOCRModel(BaseModel):
                     logger.error(f"Prediction failed after {max_retries} retries: {e}")
                     raise
         
-        # Confidence score calculation (separate step)
+        # Confidence score calculation
         conf_score = {}
         if conf_score_method == "prob":
             conf_score_prompt = (
@@ -148,7 +155,7 @@ class MistralOCRModel(BaseModel):
             ]
             for attempt in range(max_retries):
                 try:
-                    conf_response = self.client.chat.complete(
+                    conf_response = self.chat_complete_with_backoff(
                         model="mistral-large-latest",
                         messages=conf_messages,
                         temperature=0,
@@ -156,12 +163,21 @@ class MistralOCRModel(BaseModel):
                     )
                     raw_content = conf_response.choices[0].message.content
                     logger.debug(f"Raw confidence score response: {raw_content}")
-                    conf_score = json.loads(raw_content)
-                    logger.debug(f"Parsed confidence scores: {conf_score}")
-                    break
-                except json.JSONDecodeError as e:
-                    logger.error(f"Confidence score parsing failed. Raw response: {raw_content}")
-                    conf_score = {}
+                    
+                    # Extract JSON from Markdown code block
+                    json_pattern = re.compile(r'```json\s*(\{.*?\})\s*```', re.DOTALL)
+                    match = json_pattern.search(raw_content)
+                    if match:
+                        json_str = match.group(1)
+                        try:
+                            conf_score = json.loads(json_str)
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Failed to parse JSON: {e}")
+                            logger.error(f"Extracted JSON string: {json_str}")
+                            conf_score = {}
+                    else:
+                        logger.error("No JSON found in confidence score response")
+                        conf_score = {}
                     break
                 except Exception as e:
                     if self.is_retryable(e) and attempt < max_retries - 1:
@@ -179,4 +195,4 @@ class MistralOCRModel(BaseModel):
         """Check if an exception is retryable for Mistral API."""
         if not hasattr(exception, 'status_code'):
             return False
-        return exception.status_code in {429, 500, 502, 503, 504}  # Rate limit, server errors, timeouts
+        return exception.status_code in {429, 500, 502, 503, 504}
