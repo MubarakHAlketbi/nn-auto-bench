@@ -100,6 +100,74 @@ Summary metrics are also printed to the console.
 
 **Note on Result Variability:** Due to the inherent stochastic nature of Large Language Models, slight variations in benchmark results may be observed across different runs. For reference, our benchmark results are available in the [`results`](results/) folder, providing a consistent baseline for comparison.
 
+### Metrics Explained
+
+1. **Approval Accuracy** (`correct_approved / (correct_approved + incorrect_approved)`):
+   - **Definition**: The proportion of predictions approved by the confidence threshold (e.g., ≥0.99) that are correct compared to ground truth.
+   - **Purpose**: Measures how reliable the model's high-confidence predictions are. A high value indicates that when the model is confident, it’s usually right.
+   - **Example**: If 95 out of 100 approved predictions are correct, Approval Accuracy is 0.95.
+
+2. **Approval Rate** (`(correct_approved + incorrect_approved) / total_fields`):
+   - **Definition**: The fraction of all fields that the model approves with high confidence (correct or incorrect).
+   - **Purpose**: Indicates the model's tendency to confidently predict values. A high rate means the model frequently trusts its outputs, but accuracy depends on Approval Accuracy.
+   - **Example**: If 980 out of 1000 fields are approved, Approval Rate is 0.98.
+
+3. **Parsing Accuracy** (Mean of `parsing_accuracy`):
+   - **Definition**: The proportion of results where the model's output was successfully parsed into a valid JSON dictionary.
+   - **Purpose**: Assesses the model's ability to produce well-formed, machine-readable outputs. A value of 1 means perfect parsing, 0 means a failure (e.g., malformed JSON).
+   - **Example**: If 995 out of 1000 results parse correctly, Parsing Accuracy is 0.995.
+
+4. **Average Accuracy** (Mean of `file_accuracy`):
+   - **Definition**: The average field-level accuracy across all results, where `file_accuracy` is the proportion of correctly predicted fields per document (using edit distance for leniency).
+   - **Purpose**: Provides an overall measure of how well the model extracts fields compared to ground truth, accounting for partial matches via edit distance.
+   - **Example**: If `file_accuracy` averages 0.975 across 1000 documents, Average Accuracy is 0.975.
+
+5. **True Positives (tp)**:
+   - **Definition**: The sum of similarity scores (1 - edit_distance/max_length) for fields where predictions partially or fully match ground truth.
+   - **Purpose**: Quantifies correct predictions with leniency for minor errors (e.g., typos). Higher values indicate better alignment with ground truth.
+   - **Example**: A field with "01 Sep 1967" vs. "01 Sep 1967" scores 1.0; "01 Sep 1967" vs. "01 Sep 1968" might score 0.9.
+
+6. **False Positives (fp)**:
+   - **Definition**: The sum of mismatch scores (edit_distance/max_length) for fields where predictions differ from ground truth.
+   - **Purpose**: Measures the extent of incorrect predictions. Lower values mean fewer errors.
+   - **Example**: "01 Sep 1967" vs. "10 Dec 1988" might contribute 0.7 to fp.
+
+7. **False Negatives (fn)**:
+   - **Definition**: The sum of mismatch scores for fields present in ground truth but not correctly predicted (or missing).
+   - **Purpose**: Captures missed detections. Lower values indicate better recall.
+   - **Example**: If a field is in ground truth but predicted as "", fn increases.
+
+8. **True Positives Strict (tp_strict)**:
+   - **Definition**: The count of fields where predictions exactly match ground truth (no leniency).
+   - **Purpose**: Provides a strict measure of precision, useful for applications requiring exact matches.
+   - **Example**: "STEVE" vs. "STEVE" adds 1; "STEVE" vs. "STEVEN" adds 0.
+
+9. **False Positives Strict (fp_strict)**:
+   - **Definition**: The count of fields where predictions differ from ground truth (exact match only).
+   - **Purpose**: Highlights errors in a strict context. Lower values mean fewer exact mismatches.
+   - **Example**: "STEVE" vs. "STEVEN" adds 1.
+
+10. **False Negatives Strict (fn_strict)**:
+    - **Definition**: The count of fields in ground truth not exactly matched by predictions.
+    - **Purpose**: Measures strict recall failures. Lower values indicate better exact coverage.
+    - **Example**: A missing or incorrect field adds 1.
+
+11. **Total Ground Truth Fields (total_gt_fields)**:
+    - **Definition**: The number of fields in the ground truth annotation for a document.
+    - **Purpose**: Provides context for other metrics by showing the expected number of fields.
+    - **Example**: 11 fields in the annotation means `total_gt_fields = 11`.
+
+12. **Total Predicted Fields (total_pred_fields)**:
+    - **Definition**: The number of fields in the model's prediction for a document.
+    - **Purpose**: Indicates how many fields the model attempted to extract, useful for spotting over- or under-prediction.
+    - **Example**: 11 predicted fields means `total_pred_fields = 11`.
+
+### Additional Notes
+- **File Accuracy**: Calculated per document as `tp / len(queried_labels)`, then averaged for Average Accuracy. It balances precision and recall with leniency.
+- **Correct/Incorrect Approved**: Depend on a confidence threshold (e.g., 0.99) from `predicted_field_conf_scores`. These reflect the model's self-assessment reliability.
+
+These metrics collectively evaluate the model's performance in accuracy, reliability, and output quality, tailored to your OCR benchmark's needs. Let me know if you'd like these integrated into the script's output!
+
 ## Code Structure
 
 The repository is organized as follows:

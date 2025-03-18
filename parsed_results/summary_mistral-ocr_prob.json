@@ -1,0 +1,10 @@
+{
+    "model_name": "mistral-ocr_prob",
+    "approval_accuracy": 0.3276045627376426,
+    "approval_rate": 0.3951559588917603,
+    "parsing_accuracy": 0.976,
+    "average_accuracy": 0.7207511100371753,
+    "total_processed_entries": 1000,
+    "missing_entries": 0,
+    "entries_with_parsing_errors": 24
+}
